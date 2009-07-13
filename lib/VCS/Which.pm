@@ -13,8 +13,9 @@ use Carp;
 use Data::Dumper qw/Dumper/;
 use English qw/ -no_match_vars /;
 use base qw/Exporter/;
+use Path::Class qw/file/;
 
-our $VERSION     = version->new('0.0.3');
+our $VERSION     = version->new('0.0.4');
 our @EXPORT_OK   = qw//;
 our %EXPORT_TAGS = ();
 
@@ -33,6 +34,10 @@ sub new {
 	}
 
 	$self->load_systems();
+
+	if ( $self->{dir} && -f $self->{dir} ) {
+		$self->{dir} = file($self->{dir})->parent->cleanup;
+	}
 
 	return $self;
 }
@@ -153,7 +158,7 @@ sub uptodate {
 
 	return $self->{uptodate}{$dir} if exists $self->{uptodate}{$dir};
 
-	my $system = $self->which;
+	my $system = $self->which || die "Could not work out which version control system to use!\n";
 
 	return $self->{uptodate}{$dir} = $system->uptodate($dir);
 }
@@ -170,6 +175,30 @@ sub exec {
 	return $system->exec($dir, @args);
 }
 
+sub cat {
+	my ( $self, $file, @args ) = @_;
+
+	my $dir = $self->{dir};
+
+	croak "No directory supplied!" if !$dir;
+
+	my $system = $self->which;
+
+	return $system->cat($file, @args);
+}
+
+sub log {
+	my ( $self, @args ) = @_;
+
+	my $dir = $self->{dir};
+
+	croak "No directory supplied!" if !$dir;
+
+	my $system = $self->which;
+
+	return $system->log(@args);
+}
+
 1;
 
 __END__
@@ -180,7 +209,7 @@ VCS::Which - Generically interface with version control systems
 
 =head1 VERSION
 
-This documentation refers to VCS::Which version 0.0.2.
+This documentation refers to VCS::Which version 0.0.4.
 
 
 =head1 SYNOPSIS
@@ -253,6 +282,29 @@ to the VCS running the directory.
 Param: C<@args> - array - Arguments to pass on to the appropriate vcs command
 
 Description: Runs the appropriate vcs command with the parameters supplied
+
+=head3 C<cat ( $file[, $revision] )>
+
+Param: C<$file> - string - The name of the file to cat
+
+Param: C<$revision> - string - The revision to get. If the revision is negative
+it refers to the number of revisions old is desired. Any other value is
+assumed to be a version control specific revision. If no revision is specified
+the most recent revision is returned.
+
+Return: The file contents of the desired revision
+
+Description: Gets the contents of a specific revision of a file.
+
+=head3 C<log ( [$file], [@args] )>
+
+Param: C<$file> - string - The name of the file or directory to get the log of
+
+Param: C<@args> - strings - Any other arguments to pass to the log command
+
+Return: The log out put
+
+Description: Gets the log of changes (optionally limited to a file)
 
 =head1 DIAGNOSTICS
 

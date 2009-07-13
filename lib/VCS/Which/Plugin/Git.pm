@@ -37,18 +37,27 @@ sub installed {
 sub used {
 	my ( $self, $dir ) = @_;
 
+	if (-f $dir) {
+		$dir = file($dir)->parent;
+	}
+
 	croak "$dir is not a directory!" if !-d $dir;
 
-	my $current_dir = dir($dir);
+	my $current_dir = dir($dir)->absolute;
 	my $level       = 1;
 
 	while ($current_dir) {
 		if ( -d "$current_dir/.git" ) {
+			$self->{base} = $current_dir;
 			return $level;
 		}
 
 		$level++;
-		$current_dir = $current_dir->up;
+
+		# check that we still have a parent directory
+		last if $current_dir eq $current_dir->parent;
+
+		$current_dir = $current_dir->parent;
 	}
 
 	return 0;
@@ -57,11 +66,43 @@ sub used {
 sub uptodate {
 	my ( $self, $dir ) = @_;
 
-	croak "'$dir' is not a directory!" if !-d $dir;
+	$dir ||= $self->{base};
+
+	croak "'$dir' is not a directory!" if !-e $dir;
 
 	my $ans = `git status $dir`;
 
 	return $ans =~ /nothing \s to \s commit/xms ? 1 : 0;
+}
+
+sub cat {
+	my ($self, $file, $revision) = @_;
+
+	if ( $revision && $revision =~ /^-\d+$/xms ) {
+		eval { require Git };
+		if ($EVAL_ERROR) {
+			die "Git.pm is not installed only propper revision names can be used\n";
+		}
+
+		my $repo = Git->repository(Directory => $self->{base});
+		my @revs = reverse $repo->command('rev-list', '--all', '--', $file);
+		my $rev = $revs[$revision];
+
+		return join "\n", $repo->command('show', $rev . ':' . $file);
+	}
+	elsif ( !defined $revision ) {
+		$revision = '';
+	}
+
+	return `git show $revision\:$file`;
+}
+
+sub log {
+	my ($self, @args) = @_;
+
+	my $args = join ' ', @args;
+
+	return `git log $args`;
 }
 
 1;
@@ -111,6 +152,23 @@ Param: C<$dir> - string - Directory to check
 Return: bool - True if the directory has no uncommitted changes
 
 Description: Determines if the directory has no uncommitted changes
+
+=head3 C<cat ( $file[, $revision] )>
+
+Param: C<$file> - string - The name of the file to cat
+
+Param: C<$revision> - string - The revision to get. If the revision is negative
+it refers to the number of revisions old is desired. Any other value is
+assumed to be a version control specific revision. If no revision is specified
+the most recent revision is returned.
+
+Return: The file contents of the desired revision
+
+Description: Gets the contents of a specific revision of a file.
+
+=head3 C<log ( @args )>
+
+TO DO: Body
 
 =head1 DIAGNOSTICS
 
