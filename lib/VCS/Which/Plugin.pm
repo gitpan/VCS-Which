@@ -13,8 +13,9 @@ use Carp;
 use Data::Dumper qw/Dumper/;
 use English qw/ -no_match_vars /;
 use base qw/Exporter/;
+use File::chdir;
 
-our $VERSION     = version->new('0.0.4');
+our $VERSION     = version->new('0.1.0');
 our @EXPORT_OK   = qw//;
 our %EXPORT_TAGS = ();
 
@@ -68,6 +69,7 @@ sub exec {
 
 	die $self->name . " not installed\n" if !$self->installed();
 
+	local $CWD = $dir;
 	my $cmd = $self->exe;
 
 	my $run = join ' ', $cmd, @args;
@@ -83,6 +85,14 @@ sub cat {
 	return `$exe cat $rev$file`;
 }
 
+sub pull {
+	die '"pull" not implemented for this Version Controll System!';
+}
+
+sub versions {
+	die '"versions" Not implemented for this Version Controll System!';
+}
+
 1;
 
 __END__
@@ -93,7 +103,7 @@ VCS::Which::Plugin - Base class for the various VCS plugins
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin version 0.0.4.
+This documentation refers to VCS::Which::Plugin version 0.1.0.
 
 
 =head1 SYNOPSIS
@@ -199,6 +209,14 @@ Return: The file contents of the desired revision
 Description: Gets the contents of a specific revision of a file. This
 implementation works for many version control systems so may not be overloaded
 by specific plugins
+
+=head3 C<versions ( [$file], [@args] )>
+
+Description: Gets all the versions of $file
+
+=head3 C<pull ( [$dir] )>
+
+Description: Pulls or updates the directory $dir to the newest version
 
 =head1 DIAGNOSTICS
 

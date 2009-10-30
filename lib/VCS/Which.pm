@@ -15,7 +15,7 @@ use English qw/ -no_match_vars /;
 use base qw/Exporter/;
 use Path::Class qw/file/;
 
-our $VERSION     = version->new('0.0.4');
+our $VERSION     = version->new('0.1.0');
 our @EXPORT_OK   = qw//;
 our %EXPORT_TAGS = ();
 
@@ -120,6 +120,10 @@ sub which {
 		$dir = $self->{dir};
 	}
 
+	if (-f $dir) {
+		$dir = $self->{dir} = file($dir)->parent;
+	}
+
 	croak "No directory supplied!" if !$dir;
 
 	return $self->{which}{$dir} if exists $self->{which}{$dir};
@@ -140,6 +144,8 @@ sub which {
 			$min = $used;
 		}
 	}
+
+	die "Could not work out what plugin to use with '$dir'\n" if !$self->{which}{$dir};
 
 	return $self->{which}{$dir};
 }
@@ -175,18 +181,6 @@ sub exec {
 	return $system->exec($dir, @args);
 }
 
-sub cat {
-	my ( $self, $file, @args ) = @_;
-
-	my $dir = $self->{dir};
-
-	croak "No directory supplied!" if !$dir;
-
-	my $system = $self->which;
-
-	return $system->cat($file, @args);
-}
-
 sub log {
 	my ( $self, @args ) = @_;
 
@@ -199,6 +193,57 @@ sub log {
 	return $system->log(@args);
 }
 
+sub cat {
+	my ( $self, $file, @args ) = @_;
+
+	if ($file) {
+		$self->{dir} = $file;
+	}
+	else {
+		$file = $self->{dir};
+	}
+
+	croak "No file supplied!" if !$file;
+
+	my $system = $self->which;
+
+	return $system->cat($file, @args);
+}
+
+sub versions {
+	my ( $self, $file, @args ) = @_;
+
+	if ($file) {
+		$self->{dir} = $file;
+	}
+	else {
+		$file = $self->{dir};
+	}
+
+	croak "No file supplied!" if !$file;
+
+	my $system = $self->which;
+
+	return $system->versions(@args);
+}
+
+sub pull {
+	my ( $self, $dir ) = @_;
+
+	if ($dir) {
+		$self->{dir} = $dir;
+	}
+	else {
+		$dir = $self->{dir};
+	}
+
+	croak "No directory supplied!" if !$dir;
+
+	my $system = $self->which || die "Could not work out which version control system to use!\n";
+
+	return $system->pull($dir);
+}
+
 1;
 
 __END__
@@ -209,7 +254,7 @@ VCS::Which - Generically interface with version control systems
 
 =head1 VERSION
 
-This documentation refers to VCS::Which version 0.0.4.
+This documentation refers to VCS::Which version 0.1.0.
 
 
 =head1 SYNOPSIS
@@ -305,6 +350,14 @@ Param: C<@args> - strings - Any other arguments to pass to the log command
 Return: The log out put
 
 Description: Gets the log of changes (optionally limited to a file)
+
+=head3 C<versions ( [$file], [@args] )>
+
+Description: Gets all the versions of $file
+
+=head3 C<pull ( [$dir] )>
+
+Description: Pulls or updates the directory $dir to the newest version
 
 =head1 DIAGNOSTICS
 

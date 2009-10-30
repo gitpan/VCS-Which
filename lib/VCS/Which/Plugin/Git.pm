@@ -14,10 +14,12 @@ use Data::Dumper qw/Dumper/;
 use English qw/ -no_match_vars /;
 use base qw/VCS::Which::Plugin/;
 use Path::Class;
+use File::chdir;
 
-our $VERSION = version->new('0.0.2');
+our $VERSION = version->new('0.1.0');
 our $name    = 'Git';
 our $exe     = 'git';
+our $meta    = '.git';
 
 sub installed {
 	my ($self) = @_;
@@ -25,8 +27,7 @@ sub installed {
 	return $self->{installed} if exists $self->{installed};
 
 	for my $path (split /[:;]/, $ENV{PATH}) {
-		next if !-e "$path/git";
-		warn "$path/git\n";
+		next if !-x "$path/$exe";
 
 		return $self->{installed} = 1;
 	}
@@ -47,7 +48,7 @@ sub used {
 	my $level       = 1;
 
 	while ($current_dir) {
-		if ( -d "$current_dir/.git" ) {
+		if ( -d "$current_dir/$meta" ) {
 			$self->{base} = $current_dir;
 			return $level;
 		}
@@ -68,11 +69,23 @@ sub uptodate {
 
 	$dir ||= $self->{base};
 
-	croak "'$dir' is not a directory!" if !-e $dir;
+	croak "'$dir' is not a directory!" if !-d $dir;
 
-	my $ans = `git status $dir`;
+	local $CWD = $dir;
+	my $ans = `$exe status $dir`;
 
 	return $ans =~ /nothing \s to \s commit/xms ? 1 : 0;
+}
+
+sub pull {
+	my ( $self, $dir ) = @_;
+
+	$dir ||= $self->{base};
+
+	croak "'$dir' is not a directory!" if !-e $dir;
+
+	local $CWD = $dir;
+	return !system '$exe pull';
 }
 
 sub cat {
@@ -94,7 +107,7 @@ sub cat {
 		$revision = '';
 	}
 
-	return `git show $revision\:$file`;
+	return `$exe show $revision\:$file`;
 }
 
 sub log {
@@ -102,7 +115,23 @@ sub log {
 
 	my $args = join ' ', @args;
 
-	return `git log $args`;
+		SCALAR   { `$exe log $args` }
+		ARRAYREF { `$exe log $args` }
+		HASHREF  {
+			my $logs = `$exe log $args`;
+			my @logs = split /^commit\s*/xms, $logs;
+			shift @logs;
+			my $num = @logs;
+			my %log;
+			for my $log (@logs) {
+				my ($ver, $rest) = split /\n/, $log, 2;
+				my ($details, $description) = split /\n\n\s*/, $rest, 2;
+				$log{$num} = { map {split /:\s*/, $_, 2} split /\n/, $details };
+				$log{$num}{description} = $description;
+				$log{$num--}{rev} = $ver;
+			}
+			return \%log;
+		}
 }
 
 1;
@@ -115,7 +144,7 @@ VCS::Which::Plugin::Git - The Git plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::Git version 0.0.2.
+This documentation refers to VCS::Which::Plugin::Git version 0.1.0.
 
 =head1 SYNOPSIS
 
@@ -169,6 +198,14 @@ Description: Gets the contents of a specific revision of a file.
 =head3 C<log ( @args )>
 
 TO DO: Body
+
+=head3 C<versions ( [$file], [@args] )>
+
+Description: Gets all the versions of $file
+
+=head3 C<pull ( [$dir] )>
+
+Description: Pulls or updates the directory $dir to the newest version
 
 =head1 DIAGNOSTICS
 

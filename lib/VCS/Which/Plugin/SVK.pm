@@ -13,8 +13,9 @@ use Carp;
 use Data::Dumper qw/Dumper/;
 use English qw/ -no_match_vars /;
 use base qw/VCS::Which::Plugin/;
+use File::chdir;
 
-our $VERSION = version->new('0.0.2');
+our $VERSION = version->new('0.1.0');
 our $name    = 'SVK';
 our $exe     = 'svk';
 
@@ -24,12 +25,23 @@ sub installed {
 	return $self->{installed} if exists $self->{installed};
 
 	for my $path (split /[:;]/, $ENV{PATH}) {
-		next if !-x "$path/svk";
+		next if !-x "$path/$exe";
 
 		return $self->{installed} = 1;
 	}
 
 	return $self->{installed} = 0;
+}
+
+sub pull {
+	my ( $self, $dir ) = @_;
+
+	$dir ||= $self->{base};
+
+	croak "'$dir' is not a directory!" if !-e $dir;
+
+	local $CWD = $dir;
+	return !system '$exe pull';
 }
 
 1;
@@ -42,7 +54,7 @@ VCS::Which::Plugin::SVK - The SVK plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::SVK version 0.0.2.
+This documentation refers to VCS::Which::Plugin::SVK version 0.1.0.
 
 =head1 SYNOPSIS
 
@@ -79,6 +91,31 @@ Param: C<$dir> - string - Directory to check
 Return: bool - True if the directory has no uncommitted changes
 
 Description: Determines if the directory has no uncommitted changes
+
+=head3 C<cat ( $file[, $revision] )>
+
+Param: C<$file> - string - The name of the file to cat
+
+Param: C<$revision> - string - The revision to get. If the revision is negative
+it refers to the number of revisions old is desired. Any other value is
+assumed to be a version control specific revision. If no revision is specified
+the most recent revision is returned.
+
+Return: The file contents of the desired revision
+
+Description: Gets the contents of a specific revision of a file.
+
+=head3 C<log ( @args )>
+
+TO DO: Body
+
+=head3 C<versions ( [$file], [@args] )>
+
+Description: Gets all the versions of $file
+
+=head3 C<pull ( [$dir] )>
+
+Description: Pulls or updates the directory $dir to the newest version
 
 =head1 DIAGNOSTICS
 
