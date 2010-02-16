@@ -16,7 +16,7 @@ use base qw/VCS::Which::Plugin/;
 use File::chdir;
 use Contextual::Return;
 
-our $VERSION = version->new('0.1.0');
+our $VERSION = version->new('0.1.1');
 our $name    = 'Subversion';
 our $exe     = 'svn';
 our $meta    = '.svn';
@@ -65,7 +65,7 @@ sub pull {
 	croak "'$dir' is not a directory!" if !-e $dir;
 
 	local $CWD = $dir;
-	return !system '$exe update';
+	return !system "$exe update";
 }
 
 sub cat {
@@ -114,6 +114,19 @@ sub log {
 		}
 }
 
+sub versions {
+	my ($self, $file, $before_version, $max) = @_;
+
+	my %logs = %{ $self->log($file, $max ? "--limit $max" : '') };
+	my @versions;
+
+	for my $log (sort {$a <=> $b} keys %logs) {
+		push @versions, $logs{$log}{rev};# if $before_version && $logs{$log}{rev} <= $before_version;
+	}
+
+	return @versions;
+}
+
 1;
 
 __END__
@@ -124,7 +137,7 @@ VCS::Which::Plugin::Subversion - The Subversion plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::Subversion version 0.1.0.
+This documentation refers to VCS::Which::Plugin::Subversion version 0.1.1.
 
 =head1 SYNOPSIS
 

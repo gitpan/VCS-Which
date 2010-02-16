@@ -15,7 +15,7 @@ use English qw/ -no_match_vars /;
 use base qw/Exporter/;
 use File::chdir;
 
-our $VERSION     = version->new('0.1.0');
+our $VERSION     = version->new('0.1.1');
 our @EXPORT_OK   = qw//;
 our %EXPORT_TAGS = ();
 
@@ -70,8 +70,14 @@ sub exec {
 	die $self->name . " not installed\n" if !$self->installed();
 
 	local $CWD = $dir;
-	my $cmd = $self->exe;
 
+	if ($CWD ne $dir) {
+		for my $arg (@args) {
+			$arg = $CWD if $arg eq $dir;
+		}
+	}
+
+	my $cmd = $self->exe;
 	my $run = join ' ', $cmd, @args;
 	return defined wantarray ? `$run` : CORE::exec($run);
 }
@@ -90,8 +96,18 @@ sub pull {
 }
 
 sub versions {
-	die '"versions" Not implemented for this Version Controll System!';
+	my ($self, $file, $before_version, $max) = @_;
+
+	my %logs = %{ $self->log($file, $max ? "--limit $max" : '') };
+	my @versions;
+
+	for my $log (sort {$a <=> $b} keys %logs) {
+		push @versions, $logs{$log}{rev};# if $before_version && $logs{$log}{rev} <= $before_version;
+	}
+
+	return @versions;
 }
+
 
 1;
 
@@ -103,7 +119,7 @@ VCS::Which::Plugin - Base class for the various VCS plugins
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin version 0.1.0.
+This documentation refers to VCS::Which::Plugin version 0.1.1.
 
 
 =head1 SYNOPSIS
