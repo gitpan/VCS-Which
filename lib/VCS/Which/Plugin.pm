@@ -15,7 +15,7 @@ use English qw/ -no_match_vars /;
 use base qw/Exporter/;
 use File::chdir;
 
-our $VERSION     = version->new('0.1.1');
+our $VERSION     = version->new('0.2.0');
 our @EXPORT_OK   = qw//;
 our %EXPORT_TAGS = ();
 
@@ -95,6 +95,10 @@ sub pull {
 	die '"pull" not implemented for this Version Controll System!';
 }
 
+sub push {
+	die '"push" not implemented for this Version Controll System!';
+}
+
 sub versions {
 	my ($self, $file, $before_version, $max) = @_;
 
@@ -102,7 +106,7 @@ sub versions {
 	my @versions;
 
 	for my $log (sort {$a <=> $b} keys %logs) {
-		push @versions, $logs{$log}{rev};# if $before_version && $logs{$log}{rev} <= $before_version;
+		CORE::push @versions, $logs{$log}{rev};# if $before_version && $logs{$log}{rev} <= $before_version;
 	}
 
 	return @versions;
@@ -119,7 +123,7 @@ VCS::Which::Plugin - Base class for the various VCS plugins
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin version 0.1.1.
+This documentation refers to VCS::Which::Plugin version 0.2.0.
 
 
 =head1 SYNOPSIS
@@ -233,6 +237,10 @@ Description: Gets all the versions of $file
 =head3 C<pull ( [$dir] )>
 
 Description: Pulls or updates the directory $dir to the newest version
+
+=head3 C<push ( [$dir] )>
+
+Description: push updates to parent repository must be implemented by plugin
 
 =head1 DIAGNOSTICS
 

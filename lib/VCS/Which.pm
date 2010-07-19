@@ -15,7 +15,7 @@ use English qw/ -no_match_vars /;
 use base qw/Exporter/;
 use Path::Class qw/file/;
 
-our $VERSION     = version->new('0.1.2');
+our $VERSION     = version->new('0.2.0');
 our @EXPORT_OK   = qw//;
 our %EXPORT_TAGS = ();
 
@@ -244,6 +244,23 @@ sub pull {
 	return $system->pull($dir);
 }
 
+sub push {
+	my ( $self, $dir ) = @_;
+
+	if ($dir) {
+		$self->{dir} = $dir;
+	}
+	else {
+		$dir = $self->{dir};
+	}
+
+	croak "No directory supplied!" if !$dir;
+
+	my $system = $self->which || die "Could not work out which version control system to use!\n";
+
+	return $system->push($dir);
+}
+
 1;
 
 __END__
@@ -254,7 +271,7 @@ VCS::Which - Generically interface with version control systems
 
 =head1 VERSION
 
-This documentation refers to VCS::Which version 0.1.2.
+This documentation refers to VCS::Which version 0.2.0.
 
 
 =head1 SYNOPSIS
@@ -358,6 +375,10 @@ Description: Gets all the versions of $file
 =head3 C<pull ( [$dir] )>
 
 Description: Pulls or updates the directory $dir to the newest version
+
+=head3 C<push ( [$dir] )>
+
+Description: Pushes content to master repository for distributed VCS systems
 
 =head1 DIAGNOSTICS
 

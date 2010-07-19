@@ -15,8 +15,9 @@ use English qw/ -no_match_vars /;
 use base qw/VCS::Which::Plugin/;
 use File::chdir;
 use Contextual::Return;
+use Path::Class;
 
-our $VERSION = version->new('0.1.1');
+our $VERSION = version->new('0.2.0');
 our $name    = 'Subversion';
 our $exe     = 'svn';
 our $meta    = '.svn';
@@ -54,7 +55,10 @@ sub uptodate {
 
 	croak "'$dir' is not a directory!" if !-e $dir;
 
-	return `$exe status $dir`;
+	my @lines = `$exe status $dir`;
+	pop @lines;
+
+	return scalar @lines;
 }
 
 sub pull {
@@ -65,7 +69,7 @@ sub pull {
 	croak "'$dir' is not a directory!" if !-e $dir;
 
 	local $CWD = $dir;
-	return !system "$exe update";
+	return !system "$exe update > /dev/null 2> /dev/null";
 }
 
 sub cat {
@@ -117,7 +121,9 @@ sub log {
 sub versions {
 	my ($self, $file, $before_version, $max) = @_;
 
-	my %logs = %{ $self->log($file, $max ? "--limit $max" : '') };
+	$file = file($file);
+	local $CWD = -d $file ? $file : $file->parent;
+	my %logs = %{ $self->log(-d $file ? '.' : $file->basename, $max ? "--limit $max" : '') };
 	my @versions;
 
 	for my $log (sort {$a <=> $b} keys %logs) {
@@ -137,7 +143,7 @@ VCS::Which::Plugin::Subversion - The Subversion plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::Subversion version 0.1.1.
+This documentation refers to VCS::Which::Plugin::Subversion version 0.2.0.
 
 =head1 SYNOPSIS
 

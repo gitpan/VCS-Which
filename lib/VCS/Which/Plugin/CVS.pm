@@ -17,7 +17,7 @@ use Path::Class;
 use File::chdir;
 use Contextual::Return;
 
-our $VERSION = version->new('0.1.1');
+our $VERSION = version->new('0.2.0');
 our $name    = 'CVS';
 our $exe     = 'cvs';
 our $meta    = 'CVS';
@@ -66,7 +66,7 @@ sub pull {
 	croak "'$dir' is not a directory!" if !-e $dir;
 
 	local $CWD = $dir;
-	return !system '$exe update';
+	return !system "$exe update > /dev/null 2> /dev/null";
 }
 
 sub cat {
@@ -125,7 +125,7 @@ VCS::Which::Plugin::CVS - CVS plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::CVS version 0.1.1.
+This documentation refers to VCS::Which::Plugin::CVS version 0.2.0.
 
 =head1 SYNOPSIS
 

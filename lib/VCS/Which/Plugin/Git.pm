@@ -17,7 +17,7 @@ use Path::Class;
 use File::chdir;
 use Contextual::Return;
 
-our $VERSION = version->new('0.1.1');
+our $VERSION = version->new('0.2.0');
 our $name    = 'Git';
 our $exe     = 'git';
 our $meta    = '.git';
@@ -72,8 +72,8 @@ sub uptodate {
 
 	croak "'$dir' is not a directory!" if !-d $dir;
 
-	local $CWD = $dir;
-	my $ans = `$exe status $dir`;
+	local $CWD = dir($dir)->resolve->absolute;
+	my $ans = `$exe status`;
 
 	return $ans =~ /nothing \s to \s commit/xms ? 1 : 0;
 }
@@ -86,7 +86,18 @@ sub pull {
 	croak "'$dir' is not a directory!" if !-e $dir;
 
 	local $CWD = $dir;
-	return !system "$exe pull";
+	return !system "$exe pull > /dev/null 2> /dev/null";
+}
+
+sub push {
+	my ( $self, $dir ) = @_;
+
+	$dir ||= $self->{base};
+
+	croak "'$dir' is not a directory!" if !-e $dir;
+
+	local $CWD = $dir;
+	return !system "$exe push origin master > /dev/null 2> /dev/null";
 }
 
 sub cat {
@@ -159,7 +170,7 @@ VCS::Which::Plugin::Git - The Git plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::Git version 0.1.1.
+This documentation refers to VCS::Which::Plugin::Git version 0.2.0.
 
 =head1 SYNOPSIS
 
@@ -221,6 +232,10 @@ Description: Gets all the versions of $file
 =head3 C<pull ( [$dir] )>
 
 Description: Pulls or updates the directory $dir to the newest version
+
+=head3 C<push ( [$dir] )>
+
+Description: push updates to the master repository
 
 =head1 DIAGNOSTICS
 
