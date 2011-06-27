@@ -17,102 +17,123 @@ use Path::Class;
 use File::chdir;
 use Contextual::Return;
 
-our $VERSION = version->new('0.2.0');
+our $VERSION = version->new('0.3.0');
 our $name    = 'CVS';
 our $exe     = 'cvs';
 our $meta    = 'CVS';
 
 sub installed {
-	my ($self) = @_;
+    my ($self) = @_;
 
-	return $self->{installed} if exists $self->{installed};
+    return $self->{installed} if exists $self->{installed};
 
-	for my $path (split /[:;]/, $ENV{PATH}) {
-		next if !-x "$path/$exe";
+    for my $path (split /[:;]/, $ENV{PATH}) {
+        next if !-x "$path/$exe";
 
-		return $self->{installed} = 1;
-	}
+        return $self->{installed} = 1;
+    }
 
-	return $self->{installed} = 0;
+    return $self->{installed} = 0;
 }
 
 sub used {
-	my ( $self, $dir ) = @_;
+    my ( $self, $dir ) = @_;
 
-	if (-f $dir) {
-		$dir = file($dir)->parent;
-	}
+    if (-f $dir) {
+        $dir = file($dir)->parent;
+    }
 
-	croak "$dir is not a directory!" if !-d $dir;
+    croak "$dir is not a directory!" if !-d $dir;
 
-	return -d "$dir/$meta";
+    return -d "$dir/$meta";
 }
 
 sub uptodate {
-	my ( $self, $dir ) = @_;
+    my ( $self, $dir ) = @_;
 
-	$dir ||= $self->{base};
+    $dir ||= $self->{base};
 
-	croak "'$dir' is not a directory!" if !-e $dir;
+    croak "'$dir' is not a directory!" if !-e $dir;
 
-	return `$exe status $dir`;
+    chdir $dir;
+
+    return !grep {!/Up-to-date/} grep { /Status:/ } `$exe status 2>/dev/null`;
 }
 
 sub pull {
-	my ( $self, $dir ) = @_;
+    my ( $self, $dir ) = @_;
 
-	$dir ||= $self->{base};
+    $dir ||= $self->{base};
 
-	croak "'$dir' is not a directory!" if !-e $dir;
+    croak "'$dir' is not a directory!" if !-e $dir;
 
-	local $CWD = $dir;
-	return !system "$exe update > /dev/null 2> /dev/null";
+    local $CWD = $dir;
+    return !system "$exe update > /dev/null 2> /dev/null";
 }
 
 sub cat {
-	my ($self, $file, $revision) = @_;
+    my ($self, $file, $revision) = @_;
 
-	if ( $revision && $revision =~ /^-\d+$/xms ) {
-		my @versions = reverse `$exe log -q $file` =~ /^ revision \s+ (\d+[.]\d+)/gxms;
-		$revision = $versions[$revision];
-	}
-	elsif ( !defined $revision ) {
-		$revision = '';
-	}
+    if ( $revision && $revision =~ /^-\d+$/xms ) {
+        my @versions = reverse `$exe log -q $file` =~ /^ revision \s+ (\d+[.]\d+)/gxms;
+        $revision = $versions[$revision];
+    }
+    elsif ( !defined $revision ) {
+        $revision = '';
+    }
 
-	$revision &&= "-r$revision";
+    $revision &&= "-r$revision";
 
-	return `$exe cat $revision $file`;
+    return `$exe cat $revision $file`;
 }
 
 sub log {
-	my ($self, @args) = @_;
+    my ($self, $file, @args) = @_;
 
-	my $args = join ' ', @args;
+    my $args = join ' ', @args;
+    my $dir  = -d $file ? dir $file : file($file)->parent;
 
-	return
-		SCALAR   { `$exe log $args` }
-		ARRAYREF { `$exe log $args` }
-#		HASHREF  {
-#			my $logs = `$exe log $args`;
-#			my @logs = split /^-+\n/xms, $logs;
-#			shift @logs;
-#			my $num = @logs;
-#			my %log;
-#			for my $log (@logs) {
-#				my ($details, $description) = split /\n\n?/, $log, 2;
-#				$details =~ s/^\s*(.*?)\s*/$1/;
-#				my @details = split /\s+\|\s+/, $details;
-#				$details[0] =~ s/^r//;
-#				$log{$num--} = {
-#					rev    => $details[0],
-#					Author => $details[1],
-#					Date   => $details[2],
-#					description => $description,
-#				},
-#			}
-#			return \%log;
-#		}
+    chdir $dir;
+    return
+        SCALAR   { scalar `$exe log $args` }
+        ARRAYREF {
+            my $logs = `$exe $args log 2> /dev/null`;
+            my @logs;
+            for my $file ( split /^={77}$/xms, $logs ) {
+                my ($details, @log) = split /^-{28}$/xms, $file;
+                push @logs, @log;
+            }
+
+            return \@logs;
+        }
+        HASHREF  {
+            my $logs = `$exe $args log 2> /dev/null`;
+            my %log_by_date;
+            for my $file ( split /^={77}$/xms, $logs ) {
+                my ($details, @log) = split /^-{28}$/xms, $file;
+                for my $log (@log) {
+                    my (undef, $rev_line, $data_line, $description) = split /\r?\n/xms, $log, 4;
+
+                    chomp $description;
+                    my ($rev) = $rev_line =~ /^revision \s+ (.)$/xms;
+                    my ($date, $author) = $data_line =~ /^date: \s* ([^;]+); \s* author: \s* ([^;]+)/xms;
+
+                    push @{ $log_by_date{$date} }, {
+                        rev         => $rev,
+                        description => $description,
+                        Date        => $date,
+                        Author      => $author,
+                    };
+                }
+            }
+
+            my %log;
+            my $i = 1;
+            for my $date ( sort keys %log_by_date ) {
+                $log{$i++} = $log_by_date{$date}[0];
+            }
+            return \%log;
+        }
 }
 
 1;
@@ -125,7 +146,7 @@ VCS::Which::Plugin::CVS - CVS plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::CVS version 0.2.0.
+This documentation refers to VCS::Which::Plugin::CVS version 0.3.0.
 
 =head1 SYNOPSIS
 
