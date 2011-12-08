@@ -17,7 +17,7 @@ use Path::Class;
 use File::chdir;
 use Contextual::Return;
 
-our $VERSION = version->new('0.3.0');
+our $VERSION = version->new('0.4.0');
 our $name    = 'Git';
 our $exe     = 'git';
 our $meta    = '.git';
@@ -103,6 +103,21 @@ sub push {
 sub cat {
     my ($self, $file, $revision) = @_;
 
+    # git expects $file to be relative to the base of the git repo not the
+    # current directory so we change it to being relative to the repo if nessesary
+    my $repo_dir = dir($self->{base}) or confess "How did I get here with out a base directory?\n";
+    my $cwd      = dir('.')->absolute;
+    local $CWD = $CWD;
+
+    if ( -f $file && $cwd ne $repo_dir ) {
+        # get relavie directory of $cwd to $repo_dir
+        my ($relative) = $cwd =~ m{^ $repo_dir / (.*) $}xms;
+        my $old = $file;
+        $file = file("$relative/$file");
+        warn "Using repo absolute file $file from $old\n" if $ENV{VERBOSE};
+        $CWD = $repo_dir;
+    }
+
     if ( $revision && $revision =~ /^-?\d+$/xms ) {
         eval { require Git };
         if ($EVAL_ERROR) {
@@ -157,19 +172,43 @@ sub log {
             my $num = @logs;
             my %log;
             for my $log (@logs) {
-                my ($ver, $rest) = split /\n/, $log, 2;
-                my ($details, $description) = split /\n\n\s*/, $rest, 2;
-                $description =~ s/\s+\Z//xms;
-                $log{$num} = { map {split /:\s*/, $_, 2} split /\n/, $details };
-                $log{$num}{description} = $description;
-                $log{$num--}{rev} = $ver;
+                $log{$num--} = $self->_log_expand($log);
             }
             return \%log;
         }
 }
 
+sub _log_expand {
+    my ($self, $log) = @_;
+
+    # split the commit from the reset of the message
+    my ($ver, $rest) = split /\n/, $log, 2;
+
+    # split log details and the description
+    my ($details, $description) = split /\n\n\s*/, $rest, 2;
+
+    # remove excess whitespace at the end of the description
+    $description =~ s/\s+\Z//xms;
+    my ($conflicts) = $description =~ /\s+Conflicts:\s+(.*)\Z/xms;
+    $description =~ s/\s+Conflicts:\s+(.*)\Z//xms;
+
+    # split up the details
+    my %log = map {split /:\s*/, $_, 2} split /\n/, $details;
+
+    # add in the description
+    $log{description} = $description;
+
+    # add in the revision
+    $log{rev} = $ver;
+
+    # add conflicts if any
+    $log{conflicts} = [ split /\n\s+/, $conflicts ] if $conflicts;
+
+    return \%log;
+}
+
 sub versions {
-    my ($self, $file, $revision) = @_;
+    my ($self, $file, $oldest, $newest, $max) = @_;
 
     eval { require Git };
     if ($EVAL_ERROR) {
@@ -223,7 +262,7 @@ VCS::Which::Plugin::Git - The Git plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::Git version 0.3.0.
+This documentation refers to VCS::Which::Plugin::Git version 0.4.0.
 
 =head1 SYNOPSIS
 

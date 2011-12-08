@@ -10,7 +10,7 @@ use strict;
 use warnings;
 use version;
 use Scalar::Util;
-use List::Util qw/max/;
+use List::Util qw/max min/;
 use Getopt::Long;
 use Pod::Usage;
 use Data::Dumper qw/Dumper/;
@@ -20,11 +20,12 @@ use VCS::Which;
 use IO::Prompt qw/prompt/;
 use Path::Class;
 
-our $VERSION = version->new('0.3.0');
+our $VERSION = version->new('0.4.0');
 my ($name)   = $PROGRAM_NAME =~ m{^.*/(.*?)$}mxs;
 
 my %option = (
     revision => '',
+    diff     => 'vimdiff',
     verbose  => 0,
     man      => 0,
     help     => 0,
@@ -48,6 +49,9 @@ sub main {
         'change|c=i',
         'replay|R',
         'max|m=i',
+        'prev|previous|p',
+        'three|3',
+        'diff|d=s',
         'test|t!',
         'verbose|v+',
         'man',
@@ -70,9 +74,9 @@ sub main {
     # sort out the revision names
     my ( $rev_old, $rev_new ) = ('', '');
     if ( $option{'revision'} ) {
-        ($rev_old, $rev_new) =
-            $option{'revision'} =~ /:/xms ? ( split /:/xms, $option{'revision'} )
-            :                               ( $option{'revision'} );
+        ( $rev_old, $rev_new )
+            = $option{'revision'} =~ /:/xms ? ( split /:/xms, $option{'revision'} )
+            :                                 ( $option{'revision'} );
     }
 
     if ( $option{'change'} ) {
@@ -89,51 +93,95 @@ sub main {
     my $vcs = VCS::Which->new(dir => $option{file});
 
     if ($option{replay}) {
-        my $first = 1;
-        my @versions = $vcs->versions($option{file}, $rev_old ? $rev_old : 0, $option{max});
-        if ( $option{verbose} ) {
+        my $first    = 1;
+        my $warned   = 0;
+        my $versions = $vcs->log( $option{file} );
+        if ( $option{verbose} > 2 ) {
             my $i = 0;
             my $j = -2;
-            print map {$i++ . "\t" . $j-- . "\t$_\n"} @versions;
+            print map {$i++ . "\t" . $j-- . "\t$versions->{$_}{rev}\n"} sort keys %$versions;
         }
+        my $last;
+        die "Could not find any versions for $option{file}!\n" if !%$versions;
 
-        while (
-            @versions
-            && (
-                $first
-                || prompt("Next revision $versions[-1]: Continue? ", -nd => 'y')
-            )
-        ) {
-            $first = 0;
-            unlink "$tmp.$rev_old" if -e "$tmp.$rev_old";
-            $rev_old = pop @versions;
+        while ( %$versions ) {
+            if ( ( $option{prev} || $option{three} ) && $rev_old ) {
+                unlink $last if $last && -e $last;
+                $last = "$tmp.$rev_old";
+            }
+            else {
+                unlink "$tmp.$rev_old" if -e "$tmp.$rev_old";
+            }
+
+            my $rev_no = max keys %$versions;
+            my $rev    = delete $versions->{$rev_no};
+            $rev_old = $rev->{rev};
+
+            my @files
+                = $option{three} && $last ? ( $option{'file'}, $last, "$tmp.$rev_old" )
+                : $option{prev} && $last  ? ( $last, "$tmp.$rev_old" )
+                :                           ( $option{'file'}, "$tmp.$rev_old" );
+
+            my $diff = "$option{diff} " . join ' ', @files;
+
+            # write the revisioned file to disk
             write_file( "$tmp.$rev_old", scalar $vcs->cat($option{file}, $rev_old) );
+
             if ($option{test} || $option{verbose}) {
-                print "vimdiff $option{'file'} $tmp.$rev_old\n";
+                print "$diff\n" if $option{verbose} > 1;
+                my $other = { %$rev };
+
+                if ( @files == 2 ) {
+                    my $diff = "diff -wuN " . join ' ', @files;
+                    my @diff = `$diff`;
+                    $other->{'Lines added'}   = grep {/^([+] [^+] )/gxms} @diff;
+                    $other->{'Lines removed'} = grep {/^([-] [^-] )/gxms} @diff;
+                }
+
+                local $Data::Dumper::Indent = 1;
+                local $Data::Dumper::Sortkeys = 1;
+                print Data::Dumper->Dump([$other], ["*$rev_no"]);
             }
-            if (!$option{test}) {
-                system "vimdiff $option{'file'} $tmp.$rev_old";
+
+            if ( !$first || $option{verbose} ) {
+                print "y = yes continue (Default), n = not stop processing, s = skip this revision\n" if !$warned++;
+                my $ans = prompt(
+                    "Next revision $rev_old: Continue? [yns] ",
+                    '-tty',
+                    '-1',
+                    -d => 'y',
+                );
+                print "\n\n";
+                $ans = lc $ans;
+                last if $ans eq 'n' || $ans eq 'q';
+                next if $ans eq 's';
             }
+
+            # run the diff if not testing
+            system $diff if !$option{test};
+
+            $first = 0;
         }
         unlink "$tmp.$rev_old" if -e "$tmp.$rev_old";
+        unlink $last           if $last && -e $last;
     }
     elsif ($rev_new) {
         write_file( "$tmp.$rev_new", scalar $vcs->cat($option{file}, $rev_new) );
         write_file( "$tmp.$rev_old", scalar $vcs->cat($option{file}, $rev_old) );
         if ($option{test} || $option{verbose}) {
-            print "vimdiff $tmp.$rev_new $tmp.$rev_old\n";
+            print "$option{diff} $tmp.$rev_new $tmp.$rev_old\n";
         }
         if (!$option{test}) {
-            exec "vimdiff $tmp.$rev_new $tmp.$rev_old";
+            exec "$option{diff} $tmp.$rev_new $tmp.$rev_old";
         }
     }
     elsif ($rev_old) {
         write_file( "$tmp.$rev_old", scalar $vcs->cat($option{file}, $rev_old) );
         if ($option{test} || $option{verbose}) {
-            print "vimdiff $option{'file'} $tmp.$rev_old\n";
+            print "$option{diff} $option{'file'} $tmp.$rev_old\n";
         }
         if (!$option{test}) {
-            exec "vimdiff $option{'file'} $tmp.$rev_old";
+            exec "$option{diff} $option{'file'} $tmp.$rev_old";
         }
     }
     else {
@@ -142,10 +190,10 @@ sub main {
         my $rev = $log->{$ver}{rev} ? ".$log->{$ver}{rev}" : '';
         write_file( "$tmp$rev", scalar $vcs->cat($option{file}) );
         if ($option{test} || $option{verbose}) {
-            print "vimdiff $option{'file'} $tmp$rev\n";
+            print "$option{diff} $option{'file'} $tmp$rev\n";
         }
         if (!$option{test}) {
-            exec "vimdiff $option{'file'} $tmp$rev";
+            exec "$option{diff} $option{'file'} $tmp$rev";
         }
     }
 
@@ -168,7 +216,7 @@ historic versions from subversion or bazaar.
 
 =head1 VERSION
 
-This documentation refers to vcsvimdiff version 0.3.0.
+This documentation refers to vcsvimdiff version 0.4.0.
 
 =head1 SYNOPSIS
 
@@ -182,8 +230,15 @@ This documentation refers to vcsvimdiff version 0.3.0.
   -f --file=str Explisitly specify the file name
   -R --replay   Replay each change vs the current file
   -m --max=int  Maximum number of revisions to replay
+  -3 --three    Three way diff for --replay, showing the file on disk, the
+                revision one newer than the current revision and the current
+                revision.
+  -p --previous
+                If set diff are between the revision currently being used and
+                the either the last looked revision or the file on disk
   -t --test     Turn on testing (vimdiff wont actually be run)
      --no-test  Trurn off testing
+  -d --diff=str Allows you to specify a diffing program (Default vimdiff)
 
   -v --verbose  Show more detailed option
      --version  Prints the version information

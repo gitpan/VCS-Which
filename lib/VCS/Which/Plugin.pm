@@ -15,7 +15,7 @@ use English qw/ -no_match_vars /;
 use base qw/Exporter/;
 use File::chdir;
 
-our $VERSION     = version->new('0.2.0');
+our $VERSION     = version->new('0.4.0');
 our @EXPORT_OK   = qw//;
 our %EXPORT_TAGS = ();
 
@@ -100,13 +100,13 @@ sub push {
 }
 
 sub versions {
-    my ($self, $file, $before_version, $max) = @_;
+    my ($self, $file, $oldest, $newest, $max) = @_;
 
     my %logs = %{ $self->log($file, $max ? "--limit $max" : '') };
     my @versions;
 
     for my $log (sort {$a <=> $b} keys %logs) {
-        CORE::push @versions, $logs{$log}{rev};# if $before_version && $logs{$log}{rev} <= $before_version;
+        CORE::push @versions, $logs{$log}{rev};# if $oldest && $logs{$log}{rev} <= $oldest;
     }
 
     return @versions;
@@ -123,7 +123,7 @@ VCS::Which::Plugin - Base class for the various VCS plugins
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin version 0.2.0.
+This documentation refers to VCS::Which::Plugin version 0.4.0.
 
 
 =head1 SYNOPSIS
