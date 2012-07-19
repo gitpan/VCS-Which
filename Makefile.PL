@@ -19,8 +19,11 @@ WriteMakefile
   'INSTALLDIRS' => 'site',
   'EXE_FILES' => [
                    'bin/vcsblame',
+                   'bin/vcsblame~',
                    'bin/vcsvimdiff',
-                   'bin/vcsw'
+                   'bin/vcsvimdiff~',
+                   'bin/vcsw',
+                   'bin/vcsw~'
                  ],
   'PL_FILES' => {}
 )

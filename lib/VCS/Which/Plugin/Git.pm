@@ -17,7 +17,7 @@ use Path::Class;
 use File::chdir;
 use Contextual::Return;
 
-our $VERSION = version->new('0.4.0');
+our $VERSION = version->new('0.4.1');
 our $name    = 'Git';
 our $exe     = 'git';
 our $meta    = '.git';
@@ -133,6 +133,7 @@ sub cat {
     elsif ( !defined $revision ) {
         $revision = '';
     }
+    warn "$exe show $revision\:$file\n" if $ENV{VERBOSE};
 
     return `$exe show $revision\:$file`;
 }
@@ -262,7 +263,7 @@ VCS::Which::Plugin::Git - The Git plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::Git version 0.4.0.
+This documentation refers to VCS::Which::Plugin::Git version 0.4.1.
 
 =head1 SYNOPSIS
 

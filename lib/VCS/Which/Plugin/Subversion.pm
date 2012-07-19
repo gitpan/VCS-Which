@@ -17,7 +17,7 @@ use Path::Class;
 use File::chdir;
 use Contextual::Return;
 
-our $VERSION = version->new('0.4.0');
+our $VERSION = version->new('0.4.1');
 our $name    = 'Subversion';
 our $exe     = 'svn';
 our $meta    = '.svn';
@@ -55,7 +55,8 @@ sub uptodate {
 
     croak "'$dir' is not a directory!" if !-e $dir;
 
-    my @lines = `$exe status $dir`;
+    local $CWD = $dir;
+    my @lines = `$exe status`;
     pop @lines;
 
     return !@lines;
@@ -91,7 +92,7 @@ sub cat {
 sub log {
     my ($self, @args) = @_;
 
-    my $args = join ' ', @args;
+    my $args = join ' ', map {"'$_'"} @args;
 
     return
         SCALAR   { scalar `$exe log $args` }
@@ -159,7 +160,7 @@ VCS::Which::Plugin::Subversion - The Subversion plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::Subversion version 0.4.0.
+This documentation refers to VCS::Which::Plugin::Subversion version 0.4.1.
 
 =head1 SYNOPSIS
 
