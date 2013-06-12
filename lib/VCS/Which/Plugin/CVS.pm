@@ -1,6 +1,6 @@
-package VCS::Which::Plugin::Subversion;
+package VCS::Which::Plugin::CVS;
 
-# Created on: 2009-05-16 16:58:03
+# Created on: 2009-05-16 16:58:14
 # Create by:  ivan
 # $Id$
 # $Revision$, $HeadURL$, $Date$
@@ -17,10 +17,10 @@ use Path::Class;
 use File::chdir;
 use Contextual::Return;
 
-our $VERSION = version->new('0.4.3');
-our $name    = 'Subversion';
-our $exe     = 'svn';
-our $meta    = '.svn';
+our $VERSION = version->new('0.3.0');
+our $name    = 'CVS';
+our $exe     = 'cvs';
+our $meta    = 'CVS';
 
 sub installed {
     my ($self) = @_;
@@ -55,11 +55,9 @@ sub uptodate {
 
     croak "'$dir' is not a directory!" if !-e $dir;
 
-    local $CWD = $dir;
-    my @lines = `$exe status`;
-    pop @lines;
+    chdir $dir;
 
-    return !@lines;
+    return !grep {!/Up-to-date/} grep { /Status:/ } `$exe status 2>/dev/null`;
 }
 
 sub pull {
@@ -77,77 +75,65 @@ sub cat {
     my ($self, $file, $revision) = @_;
 
     if ( $revision && $revision =~ /^-\d+$/xms ) {
-        my @versions = reverse `$exe log -q $file` =~ /^ r(\d+) \s/gxms;
+        my @versions = reverse `$exe log -q $file` =~ /^ revision \s+ (\d+[.]\d+)/gxms;
         $revision = $versions[$revision];
     }
     elsif ( !defined $revision ) {
         $revision = '';
     }
 
-    $revision &&= "-r$revision";
+    $revision &&= "-r $revision";
 
-    return `$exe cat $revision $file`;
+    return `$exe update -p $revision $file`;
 }
 
 sub log {
-    my ($self, @args) = @_;
+    my ($self, $file, @args) = @_;
 
-    my $args = join ' ', map {"'$_'"} @args;
+    my $args = join ' ', @args;
+    my $dir  = -d $file ? dir $file : file($file)->parent;
 
+    chdir $dir;
     return
         SCALAR   { scalar `$exe log $args` }
         ARRAYREF {
-            my @raw_log = `$exe log $args`;
-            my @log;
-            my $line = '';
-            for my $raw (@raw_log) {
-                if ( $raw eq ( '-' x 72 ) . "\n"  && $line ) {
-                    CORE::push @log, $line;
-                    $line = '';
-                }
-                elsif ( $raw ne ( '-' x 72 ) . "\n"  ) {
-                    $line .= $raw;
-                }
-
+            my $logs = `$exe $args log 2> /dev/null`;
+            my @logs;
+            for my $file ( split /^={77}$/xms, $logs ) {
+                my ($details, @log) = split /^-{28}$/xms, $file;
+                push @logs, @log;
             }
-            return \@log;
+
+            return \@logs;
         }
         HASHREF  {
-            my $logs = `$exe log $args`;
-            my @logs = split /^-+\n/xms, $logs;
-            shift @logs;
-            my $num = @logs;
+            my $logs = `$exe $args log 2> /dev/null`;
+            my %log_by_date;
+            for my $file ( split /^={77}$/xms, $logs ) {
+                my ($details, @log) = split /^-{28}$/xms, $file;
+                for my $log (@log) {
+                    my (undef, $rev_line, $data_line, $description) = split /\r?\n/xms, $log, 4;
+
+                    chomp $description;
+                    my ($rev) = $rev_line =~ /^revision \s+ ([\d.]+)$/xms;
+                    my ($date, $author) = $data_line =~ /^date: \s* ([^;]+); \s* author: \s* ([^;]+)/xms;
+
+                    push @{ $log_by_date{$date} }, {
+                        rev         => $rev,
+                        description => $description,
+                        Date        => $date,
+                        Author      => $author,
+                    };
+                }
+            }
+
             my %log;
-            for my $log (@logs) {
-                my ($details, $description) = split /\n\n?/, $log, 2;
-                $description =~ s/\s+\Z//xms;
-                $details =~ s/^\s*(.*?)\s*/$1/;
-                my @details = split /\s+\|\s+/, $details;
-                $details[0] =~ s/^r//;
-                $log{$num--} = {
-                    rev    => $details[0],
-                    Author => $details[1],
-                    Date   => $details[2],
-                    description => $description,
-                },
+            my $i = 1;
+            for my $date ( sort keys %log_by_date ) {
+                $log{$i++} = $log_by_date{$date}[0];
             }
             return \%log;
         }
-}
-
-sub versions {
-    my ($self, $file, $oldest, $newest, $max) = @_;
-
-    $file = file($file);
-    local $CWD = -d $file ? $file : $file->parent;
-    my %logs = %{ $self->log(-d $file ? '.' : $file->basename, $max ? "--limit $max" : '') };
-    my @versions;
-
-    for my $log (sort {$a <=> $b} keys %logs) {
-        push @versions, $logs{$log}{rev};# if $oldest && $logs{$log}{rev} <= $oldest;
-    }
-
-    return @versions;
 }
 
 1;
@@ -156,15 +142,15 @@ __END__
 
 =head1 NAME
 
-VCS::Which::Plugin::Subversion - The Subversion plugin for VCS::Which
+VCS::Which::Plugin::CVS - CVS plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::Subversion version 0.4.3.
+This documentation refers to VCS::Which::Plugin::CVS version 0.3.0.
 
 =head1 SYNOPSIS
 
-   use VCS::Which::Plugin::Subversion;
+   use VCS::Which::Plugin::CVS;
 
    # Brief but working code example(s) here showing the most common usage(s)
    # This section will be as far as many users bother reading, so make it as
@@ -172,23 +158,23 @@ This documentation refers to VCS::Which::Plugin::Subversion version 0.4.3.
 
 =head1 DESCRIPTION
 
-Plugin to provide access to the Subversion version control system
+The plugin for the Concurrent Versioning System (CVS)
 
 =head1 SUBROUTINES/METHODS
 
 =head3 C<installed ()>
 
-Return: bool - True if the Subversion is installed
+Return: bool - True if the CVS is installed
 
-Description: Determines if Subversion is actually installed and usable
+Description: Determines if CVS is actually installed and usable
 
 =head3 C<used ($dir)>
 
 Param: C<$dir> - string - Directory to check
 
-Return: bool - True if the directory is versioned by this Subversion
+Return: bool - True if the directory is versioned by this CVS
 
-Description: Determines if the directory is under version control of this Subversion
+Description: Determines if the directory is under version control of this CVS
 
 =head3 C<uptodate ($dir)>
 
