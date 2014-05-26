@@ -9,7 +9,6 @@
 use strict;
 use warnings;
 use version;
-use Scalar::Util;
 use List::Util qw/max min/;
 use Getopt::Long;
 use Pod::Usage;
@@ -19,8 +18,9 @@ use FindBin qw/$Bin/;
 use VCS::Which;
 use IO::Prompt qw/prompt/;
 use Path::Class;
+use File::Copy qw/copy/;
 
-our $VERSION = version->new('0.4.3');
+our $VERSION = version->new('0.5.0');
 my ($name)   = $PROGRAM_NAME =~ m{^.*/(.*?)$}mxs;
 
 my %option = (
@@ -46,6 +46,7 @@ sub main {
         \%option,
         'revision|r=s',
         'replay|R',
+        'merge|M',
         'change|c=i',
         'changed|changed-only|C',
         'max|m=i',
@@ -67,11 +68,13 @@ sub main {
         pod2usage( -verbose => 2 );
     }
     elsif ( $option{'help'} || !@ARGV || !-e $ARGV[0] ) {
+        warn `pwd`;
+        warn "Can't find $ARGV[0]!\n" if !-e $ARGV[0];
         pod2usage( -verbose => 1 );
     }
 
+    my $temp_dir = $ENV{TEMP} || '/tmp';
     for my $file (@ARGV) {
-        warn $file;
         # sort out the revision names
         my ( $rev_old, $rev_new ) = ('', '');
         if ( $option{'revision'} ) {
@@ -88,7 +91,7 @@ sub main {
         }
 
         # create the temporary file object name
-        my $tmp = "/tmp/$$.$name." . file($file)->basename;
+        my $tmp = "$temp_dir/$$.$name." . file($file)->basename;
 
         # create a new VCS::Which object for the file of interest
         my $vcs = VCS::Which->new(dir => $file);
@@ -163,6 +166,27 @@ sub main {
             unlink "$tmp.$rev_old" if -e "$tmp.$rev_old";
             unlink $last           if $last && -e $last;
         }
+        elsif ( $option{merge}) {
+            $file = file($file);
+
+            # copy the current file out of the way
+            copy $file, "$temp_dir/" . $file->basename . ".merge";
+
+            # get current branches "ours" version
+            $vcs->checkout($file, qw/--ours/);
+            # copy to "ours"
+            copy $file, "$temp_dir/" . $file->basename . ".ours";
+
+            # get current branches "theirs" version
+            $vcs->checkout($file, qw/--theirs/);
+            # copy to "theirs"
+            copy $file, "$temp_dir/" . $file->basename . ".theirs";
+
+            # return the file
+            copy "$temp_dir/" . $file->basename . ".merge", $file;
+
+            diff( $file, "$temp_dir/" . $file->basename . ".ours", "$temp_dir/" . $file->basename . ".theirs" );
+        }
         elsif ($rev_new) {
             write_file( "$tmp.$rev_new", scalar $vcs->cat($file, $rev_new) );
             write_file( "$tmp.$rev_old", scalar $vcs->cat($file, $rev_old) );
@@ -208,7 +232,9 @@ sub main {
 
 sub write_file {
     my ($file, @contents) = @_;
-    my $fh = file($file)->openw;
+    $file = file $file;
+    $file->parent->mkpath;
+    my $fh = $file->openw;
     print {$fh} @contents;
     close $fh;
 }
@@ -232,7 +258,7 @@ historic versions from subversion or bazaar.
 
 =head1 VERSION
 
-This documentation refers to vcsvimdiff version 0.4.3.
+This documentation refers to vcsvimdiff version 0.5.0.
 
 =head1 SYNOPSIS
 
@@ -248,6 +274,8 @@ This documentation refers to vcsvimdiff version 0.4.3.
   -3 --three    Three way diff for --replay, showing the file on disk, the
                 revision one newer than the current revision and the current
                 revision.
+  -M --merge    Assume in a git merge and show "ours" and "theirs" versions
+                along git's conflicted version
   -p --previous
                 If set diff are between the revision currently being used and
                 the either the last looked revision or the file on disk

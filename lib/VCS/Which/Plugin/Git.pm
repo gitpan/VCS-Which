@@ -17,7 +17,7 @@ use Path::Class;
 use File::chdir;
 use Contextual::Return;
 
-our $VERSION = version->new('0.4.3');
+our $VERSION = version->new('0.5.0');
 our $name    = 'Git';
 our $exe     = 'git';
 our $meta    = '.git';
@@ -118,7 +118,7 @@ sub cat {
         $CWD = $repo_dir;
     }
 
-    if ( $revision && $revision =~ /^-?\d+$/xms ) {
+    if ( $revision && $revision =~ /^-?\d+$|[^0-9a-fA-F]/xms ) {
         eval { require Git };
         if ($EVAL_ERROR) {
             die "Git.pm is not installed only propper revision names can be used\n";
@@ -126,7 +126,7 @@ sub cat {
 
         my $repo = Git->repository(Directory => $self->{base});
         my @revs = reverse $repo->command('rev-list', '--all', '--', $file);
-        my $rev = $revs[$revision];
+        my $rev = $revision =~ /^[-]?\d+$/xms && $revs[$revision] ? $revs[$revision] : $revision;
 
         return join "\n", $repo->command('show', $rev . ':' . $file);
     }
@@ -140,13 +140,14 @@ sub cat {
 
 sub log {
     my ($self, @args) = @_;
+    local $CWD = $CWD;
 
     my $dir;
-    if ( -d $args[0] && $args[0] =~ m{^/} ) {
+    if ( defined $args[0] && -d $args[0] && $args[0] =~ m{^/} ) {
         $dir = shift @args;
-        chdir $dir;
+        $CWD = $dir;
     }
-    my $args = join ' ', @args;
+    my $args = join ' ', grep {defined $_} @args;
 
     return
         SCALAR   { scalar `$exe log $args` }
@@ -225,8 +226,21 @@ sub versions {
 sub status {
     my ($self, $dir) = @_;
     my %status;
-    local $CWD = dir($dir)->resolve->absolute;
-    my $status = `$exe status`;
+    my $name = '';
+    if ( -f $dir ) {
+        $name = file($dir)->resolve->absolute->basename;
+    }
+    local $CWD = -f $dir ? file($dir)->resolve->absolute->parent : dir($dir)->resolve->absolute;
+    my $status = `$exe status $name`;
+    $status =~ s/^no \s+ changes (.*?) $//xms;
+    chomp $status;
+
+    my @both = split /\n?[#]\s+both\s+modified:\s+/, $status;
+    if ( @both > 1 ) {
+        shift @both;
+        $both[-1] =~ s/\n.*//xms;
+        $status{both} = \@both;
+    }
 
     my @modified = split /\n?[#]\s+modified:\s+/, $status;
     if ( @modified > 1 ) {
@@ -250,7 +264,26 @@ sub status {
         $status{untracked} = [ grep {$_} map {chomp; $_} split /\n?[#]\s+/, $untracked ];
     }
 
+    $status{merge} = $status =~ /
+        You \s+ have \s+ unmerged \s+ paths[.]$
+        |
+        All \s+ conflicts \s+ fixed \s+ but \s+ you \s+ are \s+ still \s+ merging[.]$
+    /xms;
+
     return \%status;
+}
+
+sub checkout {
+    my ($self, $dir, @extra) = @_;
+    my $name = '';
+    if ( -f $dir ) {
+        $name = file($dir)->resolve->absolute->basename;
+    }
+    local $CWD = -f $dir ? file($dir)->resolve->absolute->parent : dir($dir)->resolve->absolute;
+    my $extra = join ' ', @extra;
+    `$exe checkout $extra $name`;
+
+    return;
 }
 
 1;
@@ -263,7 +296,7 @@ VCS::Which::Plugin::Git - The Git plugin for VCS::Which
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin::Git version 0.4.3.
+This documentation refers to VCS::Which::Plugin::Git version 0.5.0.
 
 =head1 SYNOPSIS
 

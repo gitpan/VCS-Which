@@ -9,7 +9,7 @@ build_requires:
 configure_requires:
   Module::Build: 0.38
 dynamic_config: 1
-generated_by: 'Module::Build version 0.4001, CPAN::Meta::Converter version 2.112621'
+generated_by: 'Module::Build version 0.4204, CPAN::Meta::Converter version 2.133380'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -18,22 +18,22 @@ name: VCS-Which
 provides:
   VCS::Which:
     file: lib/VCS/Which.pm
-    version: v0.4.3
+    version: v0.5.0
   VCS::Which::Plugin:
     file: lib/VCS/Which/Plugin.pm
-    version: v0.4.3
+    version: v0.5.0
   VCS::Which::Plugin::Bazaar:
     file: lib/VCS/Which/Plugin/Bazaar.pm
-    version: v0.4.3
+    version: v0.5.0
   VCS::Which::Plugin::CVS:
     file: lib/VCS/Which/Plugin/CVS.pm
     version: v0.3.0
   VCS::Which::Plugin::Git:
     file: lib/VCS/Which/Plugin/Git.pm
-    version: v0.4.3
+    version: v0.5.0
   VCS::Which::Plugin::Subversion:
     file: lib/VCS/Which/Plugin/Subversion.pm
-    version: v0.4.3
+    version: v0.5.0
 requires:
   Contextual::Return: 0
   File::chdir: 0
@@ -46,4 +46,4 @@ resources:
   bugtracker: http://rt.cpan.org/NoAuth/Bugs.html?Dist=VCS-Which
   license: http://dev.perl.org/licenses/
   repository: http://github.com/ivanwills/VCS-Which
-version: v0.4.3
+version: v0.5.0

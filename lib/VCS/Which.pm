@@ -15,7 +15,7 @@ use English qw/ -no_match_vars /;
 use base qw/Exporter/;
 use Path::Class qw/file/;
 
-our $VERSION     = version->new('0.4.3');
+our $VERSION     = version->new('0.5.0');
 our @EXPORT_OK   = qw//;
 our %EXPORT_TAGS = ();
 
@@ -120,8 +120,8 @@ sub which {
         $dir = $self->{dir};
     }
 
-    if ( $dir && ( -f $dir || !-e $dir ) ) {
-        $dir = $self->{dir} = file($dir)->parent;
+    if ( $dir && -f $dir ) {
+        $self->{dir} ||= $dir = file($dir)->parent;
     }
 
     confess "No directory supplied!" if !$dir;
@@ -183,6 +183,11 @@ sub exec {
 
 sub log {
     my ( $self, $file, @args ) = @_;
+
+    if ( ! -e $file ) {
+        unshift @args, $file;
+        undef $file;
+    }
 
     my $dir
         = !defined $file ? $self->{dir}
@@ -282,6 +287,40 @@ sub status {
     return $system->status($dir);
 }
 
+sub checkout {
+    my ( $self, $dir, @extra ) = @_;
+
+    if ($dir) {
+        $self->{dir} = $dir;
+    }
+    else {
+        $dir = $self->{dir};
+    }
+
+    confess "No directory supplied!" if !$dir;
+
+    my $system = $self->which || confess "Could not work out which version control system to use!\n";
+
+    return $system->checkout($dir, @extra);
+}
+
+sub add {
+    my ( $self, $dir, @extra ) = @_;
+
+    if ($dir) {
+        $self->{dir} = $dir;
+    }
+    else {
+        $dir = $self->{dir};
+    }
+
+    confess "No directory supplied!" if !$dir;
+
+    my $system = $self->which || confess "Could not work out which version control system to use!\n";
+
+    return $system->add($dir, @extra);
+}
+
 1;
 
 __END__
@@ -292,7 +331,7 @@ VCS::Which - Generically interface with version control systems
 
 =head1 VERSION
 
-This documentation refers to VCS::Which version 0.4.3.
+This documentation refers to VCS::Which version 0.5.0.
 
 
 =head1 SYNOPSIS
