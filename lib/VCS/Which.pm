@@ -15,7 +15,7 @@ use English qw/ -no_match_vars /;
 use base qw/Exporter/;
 use Path::Class qw/file/;
 
-our $VERSION     = version->new('0.5.0');
+our $VERSION     = version->new('0.5.1');
 our @EXPORT_OK   = qw//;
 our %EXPORT_TAGS = ();
 
@@ -331,8 +331,7 @@ VCS::Which - Generically interface with version control systems
 
 =head1 VERSION
 
-This documentation refers to VCS::Which version 0.5.0.
-
+This documentation refers to VCS::Which version 0.5.1.
 
 =head1 SYNOPSIS
 
@@ -446,6 +445,14 @@ Return: HASHREF - Status of files
 
 Description: Get the statuses of all files not added or not committed in the
 repository.
+
+=head3 C<add ( [$file] )>
+
+Add C<$file> to VCS
+
+=head3 C<checkout ( [$dir] )>
+
+Checkout clean copy of C<$file>
 
 =head1 DIAGNOSTICS
 

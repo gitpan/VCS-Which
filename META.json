@@ -41,15 +41,15 @@
    "provides" : {
       "VCS::Which" : {
          "file" : "lib/VCS/Which.pm",
-         "version" : "v0.5.0"
+         "version" : "v0.5.1"
       },
       "VCS::Which::Plugin" : {
          "file" : "lib/VCS/Which/Plugin.pm",
-         "version" : "v0.5.0"
+         "version" : "v0.5.1"
       },
       "VCS::Which::Plugin::Bazaar" : {
          "file" : "lib/VCS/Which/Plugin/Bazaar.pm",
-         "version" : "v0.5.0"
+         "version" : "v0.5.1"
       },
       "VCS::Which::Plugin::CVS" : {
          "file" : "lib/VCS/Which/Plugin/CVS.pm",
@@ -57,11 +57,11 @@
       },
       "VCS::Which::Plugin::Git" : {
          "file" : "lib/VCS/Which/Plugin/Git.pm",
-         "version" : "v0.5.0"
+         "version" : "v0.5.1"
       },
       "VCS::Which::Plugin::Subversion" : {
          "file" : "lib/VCS/Which/Plugin/Subversion.pm",
-         "version" : "v0.5.0"
+         "version" : "v0.5.1"
       }
    },
    "release_status" : "stable",
@@ -76,5 +76,5 @@
          "url" : "http://github.com/ivanwills/VCS-Which"
       }
    },
-   "version" : "v0.5.0"
+   "version" : "v0.5.1"
 }

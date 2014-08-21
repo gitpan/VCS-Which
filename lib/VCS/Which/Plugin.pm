@@ -15,7 +15,7 @@ use English qw/ -no_match_vars /;
 use base qw/Exporter/;
 use File::chdir;
 
-our $VERSION     = version->new('0.5.0');
+our $VERSION     = version->new('0.5.1');
 our @EXPORT_OK   = qw//;
 our %EXPORT_TAGS = ();
 
@@ -131,8 +131,7 @@ VCS::Which::Plugin - Base class for the various VCS plugins
 
 =head1 VERSION
 
-This documentation refers to VCS::Which::Plugin version 0.5.0.
-
+This documentation refers to VCS::Which::Plugin version 0.5.1.
 
 =head1 SYNOPSIS
 
@@ -141,7 +140,6 @@ This documentation refers to VCS::Which::Plugin version 0.5.0.
    # Brief but working code example(s) here showing the most common usage(s)
    # This section will be as far as many users bother reading, so make it as
    # educational and exemplary as possible.
-
 
 =head1 DESCRIPTION
 
@@ -249,6 +247,10 @@ Description: Pulls or updates the directory $dir to the newest version
 =head3 C<push ( [$dir] )>
 
 Description: push updates to parent repository must be implemented by plugin
+
+=head3 C<add ( [$file] )>
+
+Add C<$file> to VCS
 
 =head1 DIAGNOSTICS
 
