@@ -4,7 +4,7 @@
       "Ivan Wills <ivan.wills@gmail.com>"
    ],
    "dynamic_config" : 1,
-   "generated_by" : "Module::Build version 0.4204",
+   "generated_by" : "Module::Build version 0.421",
    "license" : [
       "perl_5"
    ],
@@ -18,7 +18,7 @@
          "requires" : {
             "Test::MinimumVersion" : "0",
             "Test::More" : "0",
-            "Test::NoWarnings" : "0"
+            "Test::Warnings" : "0"
          }
       },
       "configure" : {
@@ -27,11 +27,15 @@
          }
       },
       "runtime" : {
+         "recommends" : {
+            "Time::HiRes" : "0"
+         },
          "requires" : {
             "Contextual::Return" : "0",
             "File::chdir" : "0",
             "IO::Prompt" : "0",
             "List::MoreUtils" : "0",
+            "List::Util" : "0",
             "Path::Class" : "0.16",
             "perl" : "5.008",
             "version" : "0"
@@ -41,15 +45,15 @@
    "provides" : {
       "VCS::Which" : {
          "file" : "lib/VCS/Which.pm",
-         "version" : "v0.5.1"
+         "version" : "v0.5.2"
       },
       "VCS::Which::Plugin" : {
          "file" : "lib/VCS/Which/Plugin.pm",
-         "version" : "v0.5.1"
+         "version" : "v0.5.2"
       },
       "VCS::Which::Plugin::Bazaar" : {
          "file" : "lib/VCS/Which/Plugin/Bazaar.pm",
-         "version" : "v0.5.1"
+         "version" : "v0.5.2"
       },
       "VCS::Which::Plugin::CVS" : {
          "file" : "lib/VCS/Which/Plugin/CVS.pm",
@@ -57,11 +61,11 @@
       },
       "VCS::Which::Plugin::Git" : {
          "file" : "lib/VCS/Which/Plugin/Git.pm",
-         "version" : "v0.5.1"
+         "version" : "v0.5.2"
       },
       "VCS::Which::Plugin::Subversion" : {
          "file" : "lib/VCS/Which/Plugin/Subversion.pm",
-         "version" : "v0.5.1"
+         "version" : "v0.5.2"
       }
    },
    "release_status" : "stable",
@@ -76,5 +80,5 @@
          "url" : "http://github.com/ivanwills/VCS-Which"
       }
    },
-   "version" : "v0.5.1"
+   "version" : "v0.5.2"
 }

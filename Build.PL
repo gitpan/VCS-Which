@@ -13,6 +13,7 @@ my $builder = Module::Build->new(
         'File::chdir'        => 0,
         'IO::Prompt'         => 0,
         'List::MoreUtils'    => 0,
+        'List::Util'         => 0,
         'Path::Class'        => '0.16',
         'version'            => 0,
     },
@@ -21,8 +22,11 @@ my $builder = Module::Build->new(
     },
     build_requires => {
         'Test::More'           => 0,
-        'Test::NoWarnings'     => 0,
+        'Test::Warnings'       => 0,
         'Test::MinimumVersion' => 0,
+    },
+    recommends => {
+        'Time::HiRes' => 0,
     },
     add_to_cleanup     => [ 'VCS-Which-*' ],
     create_makefile_pl => 'traditional',
